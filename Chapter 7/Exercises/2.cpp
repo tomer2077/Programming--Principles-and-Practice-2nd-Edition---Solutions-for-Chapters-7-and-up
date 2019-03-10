@@ -223,7 +223,7 @@ double exp()
 	int i = narrow_cast<int>(y);
 
 	t = ts.get();
-	if (t.kind != ')') error("number expected after 'pow(number,number");
+	if (t.kind != ')') error("')' expected after 'pow(number,number");
 
 	return pow(x, i);
 }
