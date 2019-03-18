@@ -1,40 +1,77 @@
 /*
-    Exercise 2: adding an assignment operator to assign a new value to
-    a variable. Explain why and problems it introduces.
+	Simple calculator
 
-    Answer:
-    1. Why it's useful: This is useful because it allows for reassigning values to
-    already defined variables without having to re-open the program, thus
-    avoiding the otherwise necessary sacrifice of having to restart the
-    whole 'state' of the program which all its defined variables, even if
-    you just want to change one or a few of the already defined variables,
-    without losing all the already defined ones.
 
-    2. The problems it introduces: Trying to implement this was a little tough.
-    You have to read forward when you get a name, to check if there's an assignment
-    operator coming next, and you have to check if the name is already declared.
-    All in all, it's not as problematic as other things. is_declared() comes in
-    handy here, and so does primary(), and set_value(), as well as ts.get.
-    Before having figured out how to do this, I managed to implement reassign
-    operator but then calculating with operators wouldn't work. The solution
-    was to return the name Token normally but then read the next Token into a
-    new Token I named "t2". Then, I made a check for if the name is declaed &&
-    if the next Token's kind is '=', in which case a double var is initialized
-    to primary() which gets the number next, then set_value is passed the name
-    and the value of that double var. But if that if statement is wrong, the
-    t2 Token is just put back into the stream. Then, whatever happened,
-    get_value() is returned with the name of t, which means that if there
-    was a reassignment, now its value is being returned. And if there wasn't
-    a reassignment, well, the value of that already existing variable which
-    wasn't reassigned, is returned.
-*/
-/*
-    * This was calculator08buggy.cpp but I've drastically changed it.
-    calculator08buggy.cpp
+	Revision history:
 
-	Helpful comments removed.
+		Revised by Tomer Faibish March 2019
+	Revised by Bjarne Stroustrup November 2013
+	Revised by Bjarne Stroustrup May 2007
+	Revised by Bjarne Stroustrup August 2006
+	Revised by Bjarne Stroustrup August 2004
+	Originally written by Bjarne Stroustrup
+		(bs@cs.tamu.edu) Spring 2004.
 
-	We have inserted 3 bugs that the compiler will catch and 3 that it won't.
+
+		This program implements a basic expression calculator.
+	Input from cin; output to cout.
+
+
+	The grammar for input is:
+
+	Calculation:
+		Statement print
+		Print
+		Help print
+		Quit print
+
+	Statement:
+		Declaration 
+		Expression
+
+	Declaration:
+		"let" Name "=" Expression
+		"const" Name "=" Expression
+	
+	Name:
+		string starting with a letter, made of letters and/or digits and/or underscores
+
+	Print:
+		';'
+		'\n'
+
+	Help:
+		help
+
+	Quit:
+		quit
+
+	Expression:
+		Term
+		Expression '+' Term
+		Expression '–' Term
+
+	Term:
+		Primary
+		Term '*' Primary
+		Term '/' Primary
+		Term '%' Primary
+
+	Primary:
+		Number
+		'–' Primary
+		'+' Primary
+		'(' Expression ')'
+		Number '!'
+		"sqrt" '(' Expression ')'
+		"pow" '(' Number ',' Integer ')'
+		Name '=' Expression
+		Name
+
+	Number:
+		floating-point-literal
+ 
+	Input comes from cin through the Token_stream called ts.
 */
 
 //------------------------------------------------------------------------------
@@ -43,6 +80,42 @@
 #include "D:\cpp_files\std_lib_facilities.h"
 
 //------------------------------------------------------------------------------
+
+void print_instructions()
+{
+	cout << "\nInstructions:\n\n" <<
+
+	"Supported numbers: floating-point numbers (integers and decimal numbers)."
+	<< "\n\n" <<
+
+	"Supported operators: +, -, *, /, %.\n\n" <<
+
+	"Supported functions:\n" <<
+
+	"1. Exponents. To use this function, type pow(x,i) with x being the" <<
+	"number you want to raise to a power and i being the power you want to" <<
+	" raise x to.\n" <<
+
+	"2. Square roots. To use this function, type sqrt(x) with x being" <<
+	"the number you want to take the square root of. Taking the square " <<
+	"root of a negative number isn't supported.\n" <<
+
+	"3. Squaring a number. To use this function, type sq(x) with x being" <<
+	" the number you want to square.\n\n" <<
+
+	"How to declare a variable:\n" <<
+	"Type 'let' followed by the name of the variable, then a '=', and" <<
+	"then the value you want to assign to it.\nExample: 'let x = 5'\n\n" <<
+
+	"How to assign a new value to a variable:\nType the name of the" <<
+	" variable followed by '=' and then the new value you want to assign" <<
+	"to it.\nExample: 'x = 4'\n\n" <<
+
+	"How to declare a constant:\n" <<
+	"Type 'const' followed by the name of the constant, then a '=', " <<
+	"then the value you want to assign to it.\nExample: 'const pi = 3.14'\n\n";
+	return;
+}
 
 class Token {
 public:
@@ -66,6 +139,7 @@ public:
 	Token get();	// get a Token (defined below)
 	void putback(Token t);    // put a Token back
 	void ignore(char c); // discard all characters until and including c
+	bool check_buffer();
 private:
 	bool full{ false };		// is the buffer full?
 	Token buffer;	// here is where a Token is kept when one is passed with putback()
@@ -82,7 +156,6 @@ Token_stream::Token_stream()
 
 //------------------------------------------------------------------------------
 
-
 // The putback() member function puts its argument back into the Token_stream's buffer:
 void Token_stream::putback(Token t)
 {
@@ -91,19 +164,48 @@ void Token_stream::putback(Token t)
 	full = true;      // buffer is now full
 }
 
+bool Token_stream::check_buffer()
+{
+	return full;
+}
+
 //------------------------------------------------------------------------------
 
-const char let = 'L';		// t.kind==let means t is a variable declaration Token
-const char quit = 'Q';		// t.kind==quit means t is a quit Token
-const char print = ';';		// t.kind==print means t is a print Token
-const char number = '8';	// t.kind==number means t is a number Token
-const char name = 'a';		// t.kind==name means t is a varialbe name Token
-const char square_root = 'S';
-const char power = 'P';
-const string declkey = "let";
-const string quitkey = "quit";
-const string sqrtkey = "sqrt";
-const string powkey = "pow";
+const char let = 'L';		     // t.kind==let means t is a variable declaration Token
+const char quit = 'Q';		     // t.kind==quit means t is a quit Token
+const char print = ';';		     // t.kind==print means t is a print Token
+const char number = '8';	     // t.kind==number means t is a number Token
+const char name = 'a';		     // t.kind==name means t is a varialbe name Token
+const char square_root = 'R';    // t.kind==square_root means t is a square root Token
+const char square = 'S';
+const char power = 'P';		     // t.kind==power means t is a power Token
+const char constant = 'C';	     // t.kind==constant means t is a constant Token
+const char newline = '\n';	     // t.kind==newline means t is a newline Token
+const char help = 'h';		     // t.kind==help means t is a help Token
+const string declkey = "let";    // Variable declaration keyword
+const string quitkey = "quit";   // keyword for quit
+const string sqrtkey = "sqrt";   // keyword for the square root function
+const string powkey = "pow";     // keyword for the exponent function
+const string squarekey = "sq";     // keyword for the square function
+const string constkey = "const"; // constant Variable declaration keyword
+const string helpkey = "help";   // keyword for help
+const string prompt = "> ";	     // t.kind== means t is a Token
+const string result = "= ";	     // t.kind== means t is a Token
+Token_stream ts;	// make a Token_stream to parse input from cin
+
+
+//------------------------------------------------------------------------------
+
+Token detect_keyword(string s)
+{
+	if (s == constkey) return Token(constant);
+	if (s == declkey) return Token(let);
+	if (s == quitkey) return Token(quit);
+	if (s == sqrtkey) return Token(square_root);
+	if (s == powkey) return Token(power);
+	if (s == helpkey) return Token(help);
+	return Token(name, s);
+}
 
 //------------------------------------------------------------------------------
 
@@ -112,7 +214,7 @@ Token Token_stream::get()
 {
 	if (full) { full = false; return buffer; } // check if a Token is in buffer
 	char ch;
-	cin >> ch;	// >> skips whitespace
+	cin.get(ch);	// >> skips whitespace
 
 	switch (ch) {
 	case print:
@@ -137,15 +239,22 @@ Token Token_stream::get()
 		return Token(number, val);	// return a number Token
 	}
 	default:
+		if (isspace(ch)) {
+			if (ch == newline) return Token(newline);
+			else return ts.get();
+		}
 		if (isalpha(ch)) {
 			string s;
 			s += ch;
 			while (cin.get(ch) && (isalpha(ch) || isdigit(ch)) || ch == '_') s += ch;
 			cin.putback(ch);
+			if (s == constkey) return Token(constant);
 			if (s == declkey) return Token(let);
 			if (s == quitkey) return Token(quit);
 			if (s == sqrtkey) return Token(square_root);
 			if (s == powkey) return Token(power);
+			if (s == squarekey) return Token(square);
+			if (s == helpkey) return Token(help);
 			return Token(name, s);
 		}
 		error("Bad token");
@@ -166,8 +275,8 @@ void Token_stream::ignore(char c)
 
 	// now search input:
 	char ch = 0;
-	while (cin >> ch)		 // read/"eat" from cin until
-		if (ch == c) return; // you've read/"ate" c
+	while (cin.get(ch))		 // read/"eat" from cin until
+		if (ch == print || ch == newline) return; // you've read/"ate" c
 }
 
 //------------------------------------------------------------------------------
@@ -176,31 +285,50 @@ class Variable {
 public:
 	string name;
 	double value;
-	Variable(string n, double v) :name(n), value(v) { }
+	bool constant;
+	Variable(string n, double v, bool b) :name(n), value(v), constant(b) { }
+	//Variable(string n, double v)
+	//	:name(n), value(v), constant(false) { } // make a Variable
 };
 
 //------------------------------------------------------------------------------
 
-vector<Variable> names;	// where Variables are stored
+class Symbol_table {
+public:
+	Symbol_table();
+	double get(string s);
+	void set(string s, double d);
+	bool is_declared(string s);
+	double declare(string var, double val, bool b);
+private:
+	vector<Variable> var_table; // where Variables are stored
+};
 
 //------------------------------------------------------------------------------
 
-double get_value(string s)
+Symbol_table::Symbol_table()
+	:var_table()
+{}
+
+//------------------------------------------------------------------------------
+
 // finds and returns the value of a Variable
+double Symbol_table::get(string s)
 {
-	for (int i = 0; i < names.size(); ++i)
-		if (names[i].name == s) return names[i].value;
+	for (int i = 0; i < var_table.size(); ++i)
+		if (var_table[i].name == s) return var_table[i].value;
 	error("get: undefined name ", s);
 }
 
 //------------------------------------------------------------------------------
 
-void set_value(string s, double d)
+void Symbol_table::set(string s, double d)
 // finds a Variable and assigns it a value
 {
-	for (int i = 0; i <= names.size(); ++i)
-		if (names[i].name == s) {
-			names[i].value = d;
+	for (int i = 0; i <= var_table.size(); ++i)
+		if (var_table[i].name == s) {
+			if (var_table[i].constant) error("Can't change a constant's value.");
+			var_table[i].value = d;
 			return;
 		}
 	error("set: undefined name ", s);
@@ -208,12 +336,22 @@ void set_value(string s, double d)
 
 //------------------------------------------------------------------------------
 
-bool is_declared(string s)
+bool Symbol_table::is_declared(string s)
 // checks if a Variable was already declared
 {
-	for (int i = 0; i < names.size(); ++i)
-		if (names[i].name == s) return true;
+	for (int i = 0; i < var_table.size(); ++i)
+		if (var_table[i].name == s) return true;
 	return false;
+}
+
+//------------------------------------------------------------------------------
+
+double Symbol_table::declare(string var, double val, bool b)
+// add (var, val) to var_table
+{
+	if (is_declared(var)) error(var, " already declared");
+	var_table.push_back(Variable{ var, val, b });
+	return val;
 }
 
 //------------------------------------------------------------------------------
@@ -234,7 +372,7 @@ double factorial(double n)
 
 //------------------------------------------------------------------------------
 
-Token_stream ts;	// make a Token_stream
+
 double primary();	// declare primary() so that exp() can see it
 
 //------------------------------------------------------------------------------
@@ -253,14 +391,28 @@ double exp()
 	int i = narrow_cast<int>(y);
 
 	t = ts.get();
-	if (t.kind != ')') error("')' expected after 'pow(number,number");
+	if (t.kind != ')') error("number expected after 'pow(number,number");
 
 	return pow(x, i);
+}
+
+double second_pow()
+{
+	Token t = ts.get();
+	if (t.kind != '(') error("'(' expected for exponent.");
+
+	double x = primary();
+
+	t = ts.get();
+	if (t.kind != ')') error("number expected after 'pow(number,number");
+
+	return pow(x, 2);
 }
 
 //------------------------------------------------------------------------------
 
 double expression(); // declare expression() so other functions can see it
+Symbol_table symtable;
 
 //------------------------------------------------------------------------------
 
@@ -268,17 +420,8 @@ double expression(); // declare expression() so other functions can see it
 double primary()
 {
 	Token t = ts.get();
-	
+
 	switch (t.kind) {
-	case '(':
-	{	
-		double d = expression();
-		t = ts.get();
-		if (t.kind != ')') error("'(' expected");
-		return d;
-	}
-	case '-':
-		return -primary();
 	case number:
 		// we use '8' to represent a number
 	{
@@ -292,6 +435,15 @@ double primary()
 			return t.value;  // return the number's value
 		}
 	}
+	case '(':
+	{
+		double d = expression();
+		t = ts.get();
+		if (t.kind != ')') error("'(' expected");
+		return d;
+	}
+	case '-':
+		return -primary();
 	case square_root:
 	{
 		double d = primary();
@@ -304,15 +456,20 @@ double primary()
 		double d = exp();
 		return d;
 	}
+	case square:
+	{
+		double d = second_pow();
+		return d;
+	}
 	case name:
 	{
 		Token t2 = ts.get();
-		if (is_declared(t.name) && t2.kind == '=') {
+		if (symtable.is_declared(t.name) && t2.kind == '=') {
 			double d = primary();
-			set_value(t.name, d);
+			symtable.set(t.name, d);
 		}
 		else ts.putback(t2);
-		return get_value(t.name);
+		return symtable.get(t.name);
 	}
 	default:
 		error("primary expected");
@@ -365,7 +522,7 @@ double expression()
 {
 	double left = term();
 	Token t = ts.get();
-	
+
 	while (true) {
 		switch (t.kind) {
 		case '+':
@@ -385,24 +542,33 @@ double expression()
 
 //------------------------------------------------------------------------------
 
-double define_name(string var, double val)
-// add (var, val) to var_table
-{
-	if (is_declared(var)) error(var, " declared twice");
-	names.push_back(Variable{ var, val });
-	return val;
-}
+//double define_name(string var, double val)
+//// add (var, val) to var_table
+//{
+//	if (is_declared(var)) error(var, " already declared");
+//	var_table.push_back(Variable{ var, val });
+//	return val;
+//}
+
+//double define_name(string var, double val, bool b)
+//// add (var, val) to var_table
+//{
+//	if (is_declared(var)) error(var, " already declared");
+//	var_table.push_back(Variable{ var, val, b });
+//	return val;
+//}
 
 //------------------------------------------------------------------------------
 
 // assume we have seen "let"
 // handle: name = expression
 // handles declaring a variable
-double declaration()
+double declaration(bool constant)
 {
 	Token t = ts.get();	// get a Token from the token stream
 	if (t.kind != 'a') error("name expected in declaration"); // is it a name
 															  // for a variable?
+	
 	string name = t.name;
 	//if (is_declared(name)) error(name, " declared twice");
 
@@ -410,7 +576,7 @@ double declaration()
 	if (t2.kind != '=') error("= missing in declaration of ", name); // is it an
 																	 // '=' Token?
 	double d = expression(); // get the value assigned to the Variable
-	define_name(name, d); // append to the vector of Variables
+	symtable.declare(name, d, constant); // append to the vector of Variables
 	return d;	// return that Variable's value(to print to the screen)
 }
 
@@ -422,7 +588,9 @@ double statement()
 	Token t = ts.get();	// get a Token from token stream
 	switch (t.kind) {
 	case let:	// case for declaration Token
-		return declaration(); // declare the Variable and return its value
+		return declaration(false); // declare Variable that's not a constant
+	case constant:
+		return declaration(true); // declare Variable that's a constant
 	default:
 		ts.putback(t);	// put t back into the token stream
 		return expression(); // return the result of the expression
@@ -439,26 +607,32 @@ void clean_up_mess()
 
 //------------------------------------------------------------------------------
 
-const string prompt = "> ";
-const string result = "= ";
-
-//------------------------------------------------------------------------------
-
 // calculates the result for the user's input
 void calculate()
 {
+	bool first_iteration = true;
+		
 	while (cin)
 	try {
-		cout << prompt;
+		if (first_iteration) {
+			cout << prompt; first_iteration = false;
+		}
+		
 		Token t = ts.get();	// get a Token from the token stream
-		while (t.kind == print) t = ts.get(); // if it's a print Token, "eat" it
+		while (t.kind == print || t.kind == newline) t = ts.get(); // if it's a print Token, "eat" it
+		if (t.kind == help) { print_instructions(); first_iteration = true; continue; }
 		if (t.kind == quit) return;
 		ts.putback(t); // put Token back into the token stream
 		cout << result << statement() << endl; // output the result
+		t = ts.get();
+		while (t.kind == print) t = ts.get();
+		if (t.kind == newline) cout << prompt;
+		else ts.putback(t);
 	}
 	catch (runtime_error& e) {
 		cerr << e.what() << endl;
 		clean_up_mess();
+		first_iteration=true;
 	}
 }
 
@@ -468,12 +642,14 @@ int main()
 
 try
 {
-	// predefine names:
-	define_name("pi", 3.1415926535);
-	define_name("e", 2.7182818284);
-	define_name("k", 1000);
-	
-		calculate();
+	// predefine var_table:
+	//define_name("pi", 3.1415926535, true);
+	//define_name("e", 2.7182818284);
+	//define_name("k", 1000);
+
+	cout << "Simple calculator\nEnter 'help' for instructions\n\n";
+
+	calculate();
 
 	return 0;
 }
