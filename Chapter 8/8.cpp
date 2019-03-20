@@ -15,7 +15,7 @@ void get_input()
 	string n;
 	double a;
 
-	cout << "Type 5 sequences of a name and an age (separated by a space) ";
+	cout << "Type a few sequences of a name and an age (separated by a space) ";
 	cout << "and then press enter" << "\n\n";
 	cout << "> ";
 
@@ -24,8 +24,7 @@ void get_input()
 		ages.push_back(a);
 		if (cin.peek() == '\n') break;
 	}
-	if (!cin) error("Didn't enter sequences of names and numbers");
-	if (names.size() != 5 && ages.size() != 5) error("Didn't enter five pairs.");	
+	if (!cin) error("Didn't enter sequences of names and ages.");
 }
 
 //------------------------------------------------------------------------------
